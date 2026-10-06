@@ -11,7 +11,7 @@ const navigation={
   if(id==='exam-result')return '/resultado/'+(app.lastExam?.mode||'diagnostic');
   return ({home:'/inicio',login:'/entrar','student-signup':'/aluno/cadastro','student-code':'/aluno/codigo','teacher-login':'/professor/entrar','teacher-signup':'/professor/cadastro',dashboard:'/trilha',teacher:'/professor',survey:'/avaliacao',result:'/evolucao',achievements:'/conquistas'})[id]||'/inicio';
  },
- record(id){if(this.suspended)return;const path=this.current(id);if(this.path()!==path)history.pushState(null,'','#'+path);this.remember(path);document.title='MídiaCheck · '+({home:'Início',login:'Entrar',dashboard:'Minha trilha',module:'Habilidade',quiz:'Investigação',teacher:'Professor',survey:'Avaliação',result:'Evolução',achievements:'Conquistas','exam-result':'Resultado'}[id]||'Investigação')},
+ record(id){if(this.suspended)return;const path=this.current(id);if(this.path()!==path)history.pushState(null,'','#'+path);this.remember(path);document.title='Investigando FakeNews · '+({home:'Início',login:'Entrar',dashboard:'Minha trilha',module:'Habilidade',quiz:'Investigação',teacher:'Professor',survey:'Avaliação',result:'Evolução',achievements:'Conquistas','exam-result':'Resultado'}[id]||'Investigação')},
  async open(path=this.path()){
   if(!this.ready)return;
   this.suspended=true;

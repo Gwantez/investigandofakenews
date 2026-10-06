@@ -1,17 +1,15 @@
-# MídiaCheck
+# Investigando FakeNews
 
-Atividades de educação midiática com pré-teste, missões, pós-teste e avaliação de experiência.
+Trilha de educação midiática com pré-teste, missões, pós-teste e avaliação.
 
 Site: https://gwantez.github.io/midiacheck/
 
-O site usa GitHub Pages e Supabase. A chave de `config.js` é publicável; o banco aplica autenticação e RLS. Nenhuma senha ou chave secreta é necessária no repositório.
+O professor se cadastra com nome, e-mail e senha e cria suas turmas. Outros professores entram na mesma turma com um convite.
 
-## Contas
+O aluno escolhe seu nome e sua turma. Seu código é o nome sem espaços/acentos mais o número da turma, por exemplo JOAO301. Códigos repetidos são recusados; o aluno pode usar nome e sobrenome. A entrada usa somente esse código.
 
-As contas são cadastradas pelo responsável em Supabase > Authentication > Users. Cada conta precisa de um perfil em `profiles`: UUID da conta, código único e `is_teacher` (false para alunos, true para professor). O aluno entra com código, e-mail e senha. O professor entra pela Área do professor.
+O progresso é salvo automaticamente e retomado ao entrar novamente. O professor acompanha suas turmas em tempo real. Sair da conta fica apenas no menu superior.
 
-O professor tem leitura dos resultados e exportação CSV. Clique em Atualizar para buscar novos resultados. Aguarde "Salvo no banco online" antes de fechar a página. Use uma aba/dispositivo por conta por vez.
-
-Perguntas, gabaritos e cálculo de pontuação estão no cliente. Esta versão não garante integridade contra consulta ao código ou alteração de dados enviados pelo aluno. Importação de backups e migração automática do pacote local não estão implementadas.
+GitHub Pages e Supabase com autorização por RLS. Chaves secretas ficam somente na função de servidor. Identificadores técnicos anteriores são preservados para compatibilidade com sessões e backups.
 
 Supabase JS 2.117.2 está incluído em vendor sob licença MIT.

@@ -39,17 +39,21 @@ Deno.serve(async req=>{
   if(body.action==='student-register'){
    const name=cleanName(body.name);if(name.length<2)fail('Informe seu nome.');
    const {data:room}=await admin.from('classrooms').select('id,class_number').eq('id',String(body.classroom_id)).maybeSingle();if(!room)fail('Selecione uma turma cadastrada pelo professor.');
-   const stem=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z]/g,'').slice(0,3).toUpperCase()||'ALU';
-   // Código nominal + turma + parte aleatória: colegas com o mesmo nome têm contas diferentes.
-   const code=stem+'-'+room.class_number+'-'+token(5);
+   const stem=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z]/g,'').toUpperCase();
+   const code=stem+room.class_number;
+   if(stem.length<2)fail('Use seu nome com pelo menos duas letras.');
+   if(code.length>20)fail('Nome e turma devem formar um código de até 20 caracteres. Use um nome mais curto.');
+   const {data:existing,error:lookupError}=await admin.from('profiles').select('id').eq('participant_code',code).maybeSingle();
+   if(lookupError)fail('Não foi possível conferir seu código. Tente novamente.',503);
+   if(existing)fail('Esse nome já está cadastrado nesta turma. Se é você, entre com seu código. Caso contrário, acrescente seu sobrenome.',409);
    const email=crypto.randomUUID()+'@aluno.midiacheck.invalid';
    const {data:user,error:ue}=await admin.auth.admin.createUser({email,email_confirm:true,password:token(32)});if(ue||!user.user)fail('Não foi possível criar seu código.',503);
    const {error:pe}=await admin.from('profiles').insert({id:user.user.id,participant_code:code,is_teacher:false,code_login:true,full_name:name,class_number:room.class_number,classroom_id:room.id});
-   if(pe){await admin.auth.admin.deleteUser(user.user.id);fail('Não foi possível cadastrar. Tente novamente.',503);}
+   if(pe){await admin.auth.admin.deleteUser(user.user.id);fail(pe.code==='23505'?'Esse código já foi escolhido. Use seu nome com sobrenome.':'Não foi possível cadastrar. Tente novamente.',pe.code==='23505'?409:503);}
    return response({code,session:await sessionFor(user.user.id)});
   }
   if(body.action==='student-login'){
-   const code=String(body.code||'').trim().toUpperCase();if(!/^[A-Z0-9_-]{3,20}$/.test(code))fail('Confira seu código.',401);
+   const code=String(body.code||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'').toUpperCase();if(!/^[A-Z0-9_-]{3,20}$/.test(code))fail('Confira seu código.',401);
    const {data:p}=await admin.from('profiles').select('id,is_teacher,code_login').eq('participant_code',code).maybeSingle();
    if(!p||p.is_teacher||!p.code_login)fail('Código não encontrado. Confira o código completo.',401);
    return response({session:await sessionFor(p.id)});

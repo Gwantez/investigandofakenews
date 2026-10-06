@@ -2,7 +2,7 @@
 // A autorização real é aplicada pelo banco, pelas políticas do arquivo SQL.
 const cloud={
  client:null,user:null,profile:null,pending:null,saving:false,busy:false,channel:null,teacherLoading:false,realtimeState:null,
- status(t){document.getElementById('cloud-status').textContent=t},
+ status(t){this.lastStatus=t;const button=document.getElementById('top-logout');if(button)button.hidden=!this.user;},
  setup(){
   const c=window.MIDIACHECK_CONFIG;
   if(!window.supabase||!c?.url.startsWith('https://')||!c.key||c.key.includes('COLE_'))throw Error('Preencha config.js com a URL e a chave publicável do Supabase.');
@@ -38,9 +38,10 @@ const cloud={
  },
  async studentSignupScreen(){
   app.show('student-signup');const select=document.getElementById('student-class');
-  try{const {classes}=await this.access({action:'classes'});select.innerHTML='<option value="">Selecione sua turma</option>'+classes.map(c=>'<option value="'+c.id+'">Turma '+Scenes.escape(c.class_number)+' · '+Scenes.escape(c.teacher_name)+'</option>').join('');document.getElementById('class-help').textContent=classes.length?'Escolha sua turma.':'Seu professor precisa cadastrar a turma antes de você criar o código.'}
+  try{const {classes}=await this.access({action:'classes'});select.innerHTML='<option value="">Selecione sua turma</option>'+classes.map(c=>'<option value="'+c.id+'" data-number="'+Scenes.escape(c.class_number)+'">Turma '+Scenes.escape(c.class_number)+' · '+Scenes.escape(c.teacher_name)+'</option>').join('');document.getElementById('class-help').textContent=classes.length?'Escolha sua turma.':'Seu professor precisa cadastrar a turma antes de você criar o código.'}
   catch(e){document.getElementById('student-signup-error').textContent=e.message;}
  },
+ previewCode(){const name=document.getElementById('student-name').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z]/g,'').toUpperCase(),number=document.getElementById('student-class').selectedOptions[0]?.dataset.number||'';document.getElementById('student-code-preview').textContent=name&&number?'Seu código: '+name+number:'Seu código será seu nome + número da turma, sem espaços. Exemplo: JOAO301.';},
  async registerStudent(form){
   if(this.busy)return;this.busy=true;const button=form.querySelector('[type="submit"]');button.disabled=true;
   try{if(this.user)throw Error('Saia da conta atual antes de criar outro código.');if(this.pending||this.saving)throw Error('Aguarde o salvamento.');const result=await this.access({action:'student-register',name:form.elements.name.value,classroom_id:form.elements.classroom_id.value});
@@ -78,9 +79,9 @@ const cloud={
     const {error}=await this.client.from('progress').upsert(next,{onConflict:'user_id'});
     if(error)throw error;
     if(this.pending===next){this.pending=null;try{sessionStorage.removeItem('midiacheck-pending:'+next.user_id)}catch{}}
-   }catch(e){this.status('Falha ao salvar. Mantenha a página aberta e clique em Tentar salvar.');this.saving=false;return;}
+   }catch(e){this.status('Falha ao salvar. Nova tentativa automática em instantes.');this.saving=false;if(!this.saveFailureShown){app.toast('Não foi possível salvar agora. Tentaremos novamente automaticamente.');this.saveFailureShown=true;}clearTimeout(this.saveRetryTimer);this.saveRetryTimer=setTimeout(()=>this.retry(),5000);return;}
   }
-  this.saving=false;this.status('Salvo no banco online ✓');
+  this.saving=false;this.saveFailureShown=false;clearTimeout(this.saveRetryTimer);this.status('Salvo no banco online ✓');
  },
  async teacher(){
   if(!this.user||!this.profile?.is_teacher){app.show('teacher-login');return;}
@@ -159,7 +160,7 @@ const cloud={
   finally{this.teacherLoading=false;if(this.teacherAgain){this.teacherAgain=false;this.scheduleTeacher()}}
  },
  async logout(){
-  if(this.pending||this.saving){app.toast('Aguarde Salvo no banco online antes de sair.');return;}
+  if(this.pending||this.saving){app.toast('Ainda estamos salvando suas respostas. Aguarde um instante antes de sair.');return;}
   this.stopTeacher();if(this.client){const {error}=await this.client.auth.signOut({scope:'local'});if(error){app.toast('Não foi possível sair. Tente novamente.');return;}}this.user=null;this.profile=null;app.records={};app.student=null;app.run=null;app.home();window.navigationApp.ready=true;this.status('Conta desconectada.');
  }
 };
