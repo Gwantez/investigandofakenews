@@ -18,20 +18,54 @@ const cloud={
   this.stopTeacher();this.user=data.user;this.profile=p.data;app.records={};app.student=null;
   return p.data;
  },
+ async access(body){
+  this.setup();const {data}=await this.client.auth.getSession();
+  const res=await fetch(window.MIDIACHECK_CONFIG.url+'/functions/v1/midiacheck-access',{method:'POST',headers:{'Content-Type':'application/json',apikey:window.MIDIACHECK_CONFIG.key,...(data.session?{Authorization:'Bearer '+data.session.access_token}:{})},body:JSON.stringify(body)});
+  const result=await res.json();if(!res.ok)throw Error(result.error||'Não foi possível concluir. Tente novamente.');return result;
+ },
+ async useSession(session){
+  if(this.pending||this.saving)throw Error('Aguarde o salvamento antes de trocar de conta.');
+  this.setup();const {data,error}=await this.client.auth.setSession(session);if(error)throw Error('Não foi possível abrir a sessão.');
+  const p=await this.client.from('profiles').select('*').eq('id',data.user.id).single();if(p.error)throw Error('Não foi possível carregar sua conta.');
+  this.stopTeacher();this.user=data.user;this.profile=p.data;app.records={};app.student=null;
+ },
  async enter(){
   if(this.busy)return;this.busy=true;
-  try{
-   const code=document.getElementById('code').value.trim().toUpperCase();
-   const p=await this.authenticate(document.getElementById('cloud-email').value.trim(),document.getElementById('cloud-password').value);
-   document.getElementById('cloud-password').value='';
-   if(p.is_teacher||code!==p.participant_code)throw Error('Use o código atribuído a esta conta. Professores entram pela Área do professor.');
-   await this.loadStudent(true);
+  try{if(this.pending||this.saving)throw Error('Aguarde o salvamento.');const code=document.getElementById('code').value.trim().toUpperCase();
+   const result=await this.access({action:'student-login',code});await this.useSession(result.session);await this.loadStudent(true);
   }catch(e){document.getElementById('login-error').textContent=e.message;this.status('Entrada não concluída.');}
   finally{this.busy=false;}
  },
+ async studentSignupScreen(){
+  app.show('student-signup');const select=document.getElementById('student-class');
+  try{const {classes}=await this.access({action:'classes'});select.innerHTML='<option value="">Selecione sua turma</option>'+classes.map(c=>'<option value="'+c.id+'">Turma '+Scenes.escape(c.class_number)+' · '+Scenes.escape(c.teacher_name)+'</option>').join('');document.getElementById('class-help').textContent=classes.length?'Escolha sua turma.':'Seu professor precisa cadastrar a turma antes de você criar o código.'}
+  catch(e){document.getElementById('student-signup-error').textContent=e.message;}
+ },
+ async registerStudent(form){
+  if(this.busy)return;this.busy=true;const button=form.querySelector('[type="submit"]');button.disabled=true;
+  try{if(this.user)throw Error('Saia da conta atual antes de criar outro código.');if(this.pending||this.saving)throw Error('Aguarde o salvamento.');const result=await this.access({action:'student-register',name:form.elements.name.value,classroom_id:form.elements.classroom_id.value});
+   await this.useSession(result.session);await this.loadStudent(true);this.codeScreen();
+  }catch(e){document.getElementById('student-signup-error').textContent=e.message;}
+  finally{this.busy=false;button.disabled=false;}
+ },
+ codeScreen(){if(!this.profile||this.profile.is_teacher)return app.login();document.getElementById('created-code').textContent=this.profile.participant_code;document.getElementById('created-student').textContent=this.profile.full_name+' · Turma '+this.profile.class_number;app.show('student-code')},
+ async copyCode(){try{await navigator.clipboard.writeText(this.profile.participant_code);app.toast('Código copiado. Guarde para entrar novamente.')}catch{app.toast('Selecione e copie o código mostrado na tela.')}},
+ async registerTeacher(form){
+  if(this.busy)return;this.busy=true;const button=form.querySelector('[type="submit"]');button.disabled=true;
+  try{if(this.user)throw Error('Saia da conta atual antes de criar outra conta.');const result=await this.access({action:'teacher-register',name:form.elements.name.value,email:form.elements.email.value,password:form.elements.password.value});form.elements.password.value='';document.getElementById('teacher-signup-message').textContent=result.message;if(result.session){await this.useSession(result.session);await this.teacher()}}
+  catch(e){document.getElementById('teacher-signup-message').textContent=e.message;}
+  finally{this.busy=false;button.disabled=false;}
+ },
+ async teacherClasses(){
+  try{const {classes}=await this.access({action:'teacher-classes'});document.getElementById('teacher-class-list').innerHTML=classes.length?classes.map(c=>'<div class="class-card"><b>Turma '+Scenes.escape(c.class_number)+'</b><p>Convite para outro professor: <code>'+Scenes.escape(c.teacher_invite)+'</code></p></div>').join(''):'<p>Nenhuma turma cadastrada. Crie a primeira turma acima.</p>'}
+  catch(e){document.getElementById('class-management-message').textContent=e.message;}
+ },
+ async createClass(form){const button=form.querySelector('button');button.disabled=true;try{await this.access({action:'create-class',class_number:form.elements.number.value});form.reset();document.getElementById('class-management-message').textContent='Turma criada. Os alunos já podem se cadastrar.';await this.teacherClasses()}catch(e){document.getElementById('class-management-message').textContent=e.message}finally{button.disabled=false}},
+ async joinClass(form){const button=form.querySelector('button');button.disabled=true;try{await this.access({action:'join-class',invite:form.elements.invite.value});form.reset();document.getElementById('class-management-message').textContent='Você agora acompanha essa turma.';await this.teacherClasses();await this.teacher()}catch(e){document.getElementById('class-management-message').textContent=e.message}finally{button.disabled=false}},
  enqueue(r){
   if(!this.user||this.profile?.is_teacher||r.participant_code!==this.profile?.participant_code){this.status('Sem conta de aluno conectada.');return false;}
-  this.pending={user_id:this.user.id,participant_code:r.participant_code,record:JSON.parse(JSON.stringify(r))};
+  r.full_name=this.profile.full_name||r.full_name||'';r.class_number=this.profile.class_number||r.class_number||'';
+  this.pending={user_id:this.user.id,classroom_id:this.profile.classroom_id||null,participant_code:r.participant_code,record:JSON.parse(JSON.stringify(r))};
   try{sessionStorage.setItem('midiacheck-pending:'+this.user.id,JSON.stringify(this.pending))}catch{this.status('Não foi possível guardar o rascunho nesta aba. Aguarde o salvamento online.');}
   this.retry();return true;
  },
@@ -49,12 +83,12 @@ const cloud={
   this.saving=false;this.status('Salvo no banco online ✓');
  },
  async teacher(){
-  if(!this.user||!this.profile?.is_teacher){document.getElementById('cloud-teacher').showModal();return;}
-  this.startTeacher();await this.refreshTeacher();
+  if(!this.user||!this.profile?.is_teacher){app.show('teacher-login');return;}
+  this.startTeacher();await Promise.all([this.refreshTeacher(),this.teacherClasses()]);
  },
  async teacherLogin(form){
   if(this.busy)return;this.busy=true;
-  try{const p=await this.authenticate(form.elements.email.value.trim(),form.elements.password.value);form.elements.password.value='';if(!p.is_teacher)throw Error('Esta conta não tem acesso de professor.');document.getElementById('cloud-teacher').close();await this.teacher();}
+  try{const p=await this.authenticate(form.elements.email.value.trim(),form.elements.password.value);form.elements.password.value='';if(!p.is_teacher)throw Error('Esta conta não tem acesso de professor.');await this.teacher();}
   catch(e){document.getElementById('cloud-teacher-error').textContent=e.message;}
   finally{this.busy=false;}
  },
@@ -83,7 +117,7 @@ const cloud={
    const {data:verified,error:authError}=await this.client.auth.getUser();if(authError)throw authError;
    const p=await this.client.from('profiles').select('*').eq('id',verified.user.id).single();if(p.error)throw p.error;
    this.user=verified.user;this.profile=p.data;
-   if(p.data.is_teacher){window.navigationApp.ready=true;await window.navigationApp.open(window.navigationApp.path()==='/inicio'?(window.navigationApp.last()||'/professor'):window.navigationApp.path())}
+   if(p.data.is_teacher){window.navigationApp.ready=true;await window.navigationApp.open(['/inicio','/professor/cadastro','/professor/entrar'].includes(window.navigationApp.path())?'/professor':window.navigationApp.path())}
    else await this.loadStudent();
   }catch(e){window.navigationApp.ready=true;this.loginScreen.call(app);document.getElementById('login-error').textContent='Não foi possível recuperar a sessão. Entre novamente para continuar do progresso salvo.';this.status('Não foi possível conectar. Tente novamente.');}
  },
