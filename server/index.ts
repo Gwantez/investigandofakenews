@@ -72,6 +72,18 @@ Deno.serve(async req=>{
    return response({message:'Conta de professor criada.',session:{access_token:login.session.access_token,refresh_token:login.session.refresh_token}});
   }
   const p=await teacher(req);
+  if(body.action==='delete-student'){
+   const code=String(body.code||'');if(!/^[A-Z0-9_-]{3,20}$/.test(code)||body.confirm_code!==code)fail('Digite o código completo do aluno para confirmar.');
+   const {data:student,error:se}=await admin.from('profiles').select('id,is_teacher,classroom_id').eq('participant_code',code).maybeSingle();
+   if(se)throw se;if(!student)fail('Aluno não encontrado.',404);if(student.is_teacher)fail('Contas de professores não podem ser excluídas por esta opção.',403);
+   if(!p.is_admin){
+    const {data:member,error:me}=await admin.from('class_teachers').select('teacher_id').eq('teacher_id',p.id).eq('classroom_id',student.classroom_id).maybeSingle();
+    if(me)throw me;if(!member)fail('Você só pode excluir alunos das suas turmas.',403);
+   }
+   // Remoção definitiva: as chaves estrangeiras apagam perfil e progresso junto com a conta.
+   const {error:de}=await admin.auth.admin.deleteUser(student.id);if(de)throw de;
+   return response({deleted:true,code});
+  }
   if(body.action==='teacher-classes'){
    let q=admin.from('class_teachers').select('classrooms(id,class_number,teacher_name,teacher_invite)').eq('teacher_id',p.id);
    const {data,error}=await q;if(error)throw error;

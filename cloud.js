@@ -145,19 +145,51 @@ const cloud={
    while(true){const {data,error}=await this.client.from('progress').select('record').order('user_id').range(start,start+499);if(error)throw error;all.push(...data);if(data.length<500)break;start+=500;}
    if(this.user?.id!==uid||!this.profile?.is_teacher)return;
    if(all.some(x=>!app.validRecord(x.record)))throw Error('Há um registro incompatível no banco.');
-   app.records=Object.fromEntries(all.map(x=>[x.record.participant_code,x.record]));
-   if(show||document.getElementById('teacher').classList.contains('active')){
-    const term=document.getElementById('search').value,details=document.getElementById('teacher-details'),code=details.classList.contains('hidden')?null:details.dataset.code;
-    const scroll=window.scrollY,path=window.navigationApp.path();
-    const suspended=window.navigationApp.suspended;window.navigationApp.suspended=true;
-    this.renderTeacher.call(app);document.getElementById('search').value=term;app.teacherTable(term);
-    if(code&&app.records[code]){app.details(code);window.scrollTo({top:scroll,behavior:'instant'})}
-    window.navigationApp.suspended=suspended;
-    if(show&&!suspended)window.navigationApp.record('teacher');else if(!show&&window.navigationApp.path()!==path)history.replaceState(null,'','#'+path);
+   const next=Object.fromEntries(all.map(x=>[x.record.participant_code,x.record]));
+   const changed=JSON.stringify(next)!==JSON.stringify(app.records);
+   const details=document.getElementById('teacher-details'),code=details.classList.contains('hidden')?null:details.dataset.code;
+   const detailChanged=code&&JSON.stringify(next[code])!==JSON.stringify(app.records[code]);
+   app.records=next;
+   if(show){this.renderTeacher.call(app);window.navigationApp.record('teacher');}
+   else if(changed&&document.getElementById('teacher').classList.contains('active')){
+    // Atualizações silenciosas: nunca reabrir a tela, mover foco ou apagar formulários.
+    const scroll=window.scrollY,term=document.getElementById('search').value;
+    const active=document.activeElement;
+    app.teacherStats();app.teacherTable(term);
+    if(code&&!next[code]){details.classList.add('hidden');details.dataset.code='';window.navigationApp.record('teacher');}
+    else if(detailChanged){
+     const expanded=Array.from(details.querySelectorAll('details')).map(d=>d.open);
+     const suspended=window.navigationApp.suspended;window.navigationApp.suspended=true;
+     try{app.details(code);details.querySelectorAll('details').forEach((d,i)=>{d.open=!!expanded[i]});}
+     finally{window.navigationApp.suspended=suspended;}
+     window.scrollTo({top:scroll,behavior:'instant'});
+    }
+    if(active?.isConnected&&document.activeElement!==active)active.focus({preventScroll:true});
    }
    this.status(this.realtimeState==='SUBSCRIBED'?'Professor: atualizações em tempo real ✓':'Professor: atualização automática ativa ✓');
   }catch(e){this.status('Falha ao atualizar resultados. Nova tentativa automática.');if(show)app.toast('Não foi possível carregar resultados: '+e.message);}
   finally{this.teacherLoading=false;if(this.teacherAgain){this.teacherAgain=false;this.scheduleTeacher()}}
+ },
+ confirmDelete(code){
+  if(!this.profile?.is_teacher||!app.records[code])return;
+  const r=app.records[code],dialog=document.getElementById('delete-student-dialog');
+  this.deleteCode=code;document.getElementById('delete-student-name').textContent=(r.full_name||code)+(r.class_number?' · Turma '+r.class_number:'');
+  document.getElementById('delete-student-code').textContent=code;
+  document.getElementById('delete-confirm-code').value='';document.getElementById('delete-student-error').textContent='';
+  dialog.showModal();document.getElementById('delete-confirm-code').focus();
+ },
+ async deleteStudent(form){
+  if(this.deleting||!this.profile?.is_teacher)return;
+  const code=this.deleteCode,message=document.getElementById('delete-student-error'),button=form.querySelector('[type="submit"]');
+  if(form.elements.confirm_code.value.trim()!==code){message.textContent='Digite o código exatamente como aparece acima.';return;}
+  this.deleting=true;button.disabled=true;message.textContent='Excluindo aluno…';
+  try{
+   await this.access({action:'delete-student',code,confirm_code:form.elements.confirm_code.value.trim()});
+   delete app.records[code];document.getElementById('teacher-details').classList.add('hidden');document.getElementById('teacher-details').dataset.code='';
+   document.getElementById('delete-student-dialog').close();window.navigationApp.record('teacher');
+   app.teacherStats();app.teacherTable(document.getElementById('search').value);await this.refreshTeacher(false);app.toast('Aluno e respostas excluídos do banco de dados.');
+  }catch(e){message.textContent=e.message||'Não foi possível excluir. Tente novamente.';}
+  finally{this.deleting=false;button.disabled=false;}
  },
  async logout(){
   if(this.pending||this.saving){app.toast('Ainda estamos salvando suas respostas. Aguarde um instante antes de sair.');return;}
