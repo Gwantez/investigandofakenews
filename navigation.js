@@ -9,9 +9,9 @@ const navigation={
   if(id==='module')return '/habilidade/'+(app.moduleIndex+1);
   if(id==='quiz'&&app.run){const r=app.run;return r.mode==='module'?'/missao/'+(r.mi+1)+'/'+(QBANK.modules[r.mi].items.findIndex(q=>q.id===r.ids[0])+1):'/prova/'+r.mode+'/'+(r.index+1)}
   if(id==='exam-result')return '/resultado/'+(app.lastExam?.mode||'diagnostic');
-  return ({home:'/inicio',login:'/entrar','student-signup':'/aluno/cadastro','student-code':'/aluno/codigo','teacher-login':'/professor/entrar','teacher-signup':'/professor/cadastro',dashboard:'/trilha','class-lesson':'/aula',teacher:'/professor',survey:'/avaliacao',result:'/evolucao',achievements:'/conquistas'})[id]||'/inicio';
+  return ({home:'/inicio',login:'/entrar','student-signup':'/aluno/cadastro','student-code':'/aluno/codigo','teacher-login':'/professor/entrar','teacher-signup':'/professor/cadastro',dashboard:'/trilha','class-lesson':'/aula',practice:'/praticar',teacher:'/professor',survey:'/avaliacao',result:'/evolucao',achievements:'/conquistas'})[id]||'/inicio';
  },
- record(id){if(this.suspended)return;const path=this.current(id);if(this.path()!==path)history.pushState(null,'','#'+path);this.remember(path);document.title='Investigando FakeNews · '+({home:'Início',login:'Entrar',dashboard:'Minha trilha',module:'Habilidade',quiz:'Investigação',teacher:'Professor',survey:'Avaliação',result:'Evolução',achievements:'Conquistas','exam-result':'Resultado'}[id]||'Investigação')},
+ record(id){if(this.suspended)return;const path=this.current(id);if(this.path()!==path)history.pushState(null,'','#'+path);this.remember(path);document.title='Investigando FakeNews · '+({home:'Início',login:'Entrar',dashboard:'Minha trilha',practice:'Verdadeiro ou falso',module:'Habilidade',quiz:'Investigação',teacher:'Professor',survey:'Avaliação',result:'Evolução',achievements:'Conquistas','exam-result':'Resultado'}[id]||'Investigação')},
  async open(path=this.path()){
   if(!this.ready)return;
   this.suspended=true;
@@ -28,6 +28,7 @@ const navigation={
     if(cloud.profile?.is_teacher){await cloud.teacher();if(p[1]&&app.records[p[1]])app.details(p[1])}
     else app.show('teacher-login')
    }else if(!app.record())cloud.loginScreen.call(app);
+   else if(page==='praticar')app.openPractice();
    else if(page==='aula')app.openClassLesson();
    else if(page==='habilidade')app.module(Number(p[1])-1);
    else if(page==='prova'||page==='missao'){
