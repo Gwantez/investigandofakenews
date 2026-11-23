@@ -6,7 +6,11 @@ Site: https://gwantez.github.io/investigandofakenews/
 
 O professor se cadastra com nome, e-mail e senha e cria suas turmas. Outros professores entram na mesma turma com um convite.
 
-O aluno escolhe seu nome e sua turma. Seu código é o nome sem espaços/acentos mais o número da turma, por exemplo JOAO301. Códigos repetidos são recusados; o aluno pode usar nome e sobrenome. A entrada usa somente esse código.
+O aluno escolhe somente a turma. O servidor sorteia um apelido formado por palavras e acrescenta o número da turma ao código, por exemplo AURORACORAL1 (Aurora Coral, turma 1). O cadastro não pede nome, e-mail ou senha do aluno e ignora nomes ou códigos enviados pelo cliente. O código deve ser guardado, pois permite voltar à mesma conta; a entrada aceita letras maiúsculas ou minúsculas.
+
+O apelido é gravado na coluna `full_name` por compatibilidade com os painéis existentes. A unicidade é garantida pela restrição do banco; colisões geram nova tentativa, inclusive em cadastros simultâneos. As contas e respostas anteriores permanecem com seus identificadores originais. Apelidos constituem pseudonimização; não representam, por si só, anonimização irreversível ou aprovação ética da pesquisa.
+
+Ao publicar o backend, inclua `server/index.ts`, `server/student-nicknames.mjs` e a configuração Deno da função `midiacheck-access`. Não coloque chaves administrativas no navegador.
 
 O progresso é salvo automaticamente e retomado ao entrar novamente. O professor acompanha suas turmas em tempo real. Sair da conta fica apenas no menu superior.
 

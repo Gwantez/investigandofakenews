@@ -38,13 +38,14 @@ const cloud={
  },
  async studentSignupScreen(){
   app.show('student-signup');const select=document.getElementById('student-class');
+  document.getElementById('student-signup-error').textContent='';select.innerHTML='<option value="">Carregando turmas…</option>';this.previewCode();
   try{const {classes}=await this.access({action:'classes'});select.innerHTML='<option value="">Selecione sua turma</option>'+classes.map(c=>'<option value="'+c.id+'" data-number="'+Scenes.escape(c.class_number)+'">Turma '+Scenes.escape(c.class_number)+' · '+Scenes.escape(c.teacher_name)+'</option>').join('');document.getElementById('class-help').textContent=classes.length?'Escolha sua turma.':'Seu professor precisa cadastrar a turma antes de você criar o código.'}
   catch(e){document.getElementById('student-signup-error').textContent=e.message;}
  },
- previewCode(){const name=document.getElementById('student-name').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z]/g,'').toUpperCase(),number=document.getElementById('student-class').selectedOptions[0]?.dataset.number||'';document.getElementById('student-code-preview').textContent=name&&number?'Seu código: '+name+number:'Seu código será seu nome + número da turma, sem espaços. Exemplo: JOAO301.';},
+ previewCode(){const number=document.getElementById('student-class').selectedOptions[0]?.dataset.number||'';document.getElementById('student-code-preview').textContent=number?'Ao confirmar, você receberá um apelido aleatório + '+number+'. Guarde o código para entrar novamente.':'Seu código será um apelido aleatório + número da turma. Exemplo: AURORACORAL1. Você verá o seu após o cadastro.';},
  async registerStudent(form){
   if(this.busy)return;this.busy=true;const button=form.querySelector('[type="submit"]');button.disabled=true;
-  try{if(this.user)throw Error('Saia da conta atual antes de criar outro código.');if(this.pending||this.saving)throw Error('Aguarde o salvamento.');const result=await this.access({action:'student-register',name:form.elements.name.value,classroom_id:form.elements.classroom_id.value});
+  try{if(this.user)throw Error('Saia da conta atual antes de criar outro código.');if(this.pending||this.saving)throw Error('Aguarde o salvamento.');if(!form.elements.classroom_id.value)throw Error('Selecione sua turma.');const result=await this.access({action:'student-register',classroom_id:form.elements.classroom_id.value});
    await this.useSession(result.session);await this.loadStudent(true);this.codeScreen();
   }catch(e){document.getElementById('student-signup-error').textContent=e.message;}
   finally{this.busy=false;button.disabled=false;}
