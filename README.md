@@ -12,6 +12,12 @@ O apelido é gravado na coluna `full_name` por compatibilidade com os painéis e
 
 Ao publicar o backend, inclua `server/index.ts`, `server/student-nicknames.mjs` e a configuração Deno da função `midiacheck-access`. Não coloque chaves administrativas no navegador.
 
+### Lembrança voluntária do código
+
+O balão permite aceitar ou recusar a lembrança do código por até 30 dias. O cookie `__Secure-ifn-code-memory-choice` contém somente a preferência, com `Secure`, `SameSite=Strict` e caminho restrito à aplicação. O código fica em `localStorage`, com vencimento próprio, para não circular em cabeçalhos de cookies. Não há consulta de IP, vínculo por rede, impressão digital do dispositivo ou entrada automática neste recurso.
+
+O preenchimento automático só é ativado após consentimento e para códigos de contas de alunos confirmadas na entrada ou no cadastro. As opções de recusar, esquecer e sair removem o código local sem apagar respostas do banco. A preferência pode ser alterada no rodapé. Em computadores compartilhados, a orientação é não lembrar o código. A funcionalidade não substitui os cuidados éticos da pesquisa, nem elimina os dados de conexão processados pelos provedores de infraestrutura.
+
 O progresso é salvo automaticamente e retomado ao entrar novamente. O professor acompanha suas turmas em tempo real. Sair da conta fica apenas no menu superior.
 
 GitHub Pages e Supabase com autorização por RLS. Chaves secretas ficam somente na função de servidor. Identificadores técnicos anteriores são preservados para compatibilidade com sessões e backups.

@@ -25,7 +25,7 @@ const app={
  show(id){if(window.speechSynthesis)window.speechSynthesis.cancel();document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('active',e.id===id));window.scrollTo({top:0,behavior:'instant'});$('main').focus({preventScroll:true})},
  toast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(this.toastTimer);this.toastTimer=setTimeout(()=>$('toast').classList.remove('show'),6000)},
  home(){this.run=null;this.show('home')},
- login(){this.run=null;$('code').value=this.student||'';$('login-error').textContent='';this.avatarChoice=this.record()?.avatar||0;this.renderAvatars('login-avatars');this.show('login');$('code').focus()},
+ login(){this.run=null;$('code').value=this.student||'';$('login-error').textContent='';this.avatarChoice=this.record()?.avatar||0;this.renderAvatars('login-avatars');this.show('login');window.codeMemory?.prefill();$('code').focus()},
  renderAvatars(id){$(id).innerHTML=AVATARS.map((a,i)=>`<button type="button" class="avatar-option ${this.avatarChoice===i?'chosen':''}" aria-pressed="${this.avatarChoice===i}" aria-label="${a.name}" onclick="app.pickAvatar(${i},'${id}')"><span>${a.icon}</span><small>${a.name}</small></button>`).join('')},
  pickAvatar(i,target){if(!AVATARS[i])return;this.avatarChoice=i;this.renderAvatars(target);if(target==='change-avatars'){const r=this.record();r.avatar=i;this.save(r);this.dashboard()}},
  avatarDialog(){this.avatarChoice=this.record()?.avatar||0;this.renderAvatars('change-avatars');$('avatar-dialog').showModal()},

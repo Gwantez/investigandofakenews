@@ -110,6 +110,7 @@ const cloud={
   // Um rascunho em andamento tem prioridade ao entrar novamente com o código.
   if(fromLogin&&record.draft)app.resume();
   else {const last=window.navigationApp.last();await window.navigationApp.open(fromLogin?(last&&!['/inicio','/entrar'].includes(last)?last:'/trilha'):window.navigationApp.path());}
+  window.codeMemory?.rememberStudent(this.profile);
  },
  async boot(){
   try{
@@ -194,7 +195,7 @@ const cloud={
  },
  async logout(){
   if(this.pending||this.saving){app.toast('Ainda estamos salvando suas respostas. Aguarde um instante antes de sair.');return;}
-  this.stopTeacher();if(this.client){const {error}=await this.client.auth.signOut({scope:'local'});if(error){app.toast('Não foi possível sair. Tente novamente.');return;}}this.user=null;this.profile=null;app.records={};app.student=null;app.run=null;app.home();window.navigationApp.ready=true;this.status('Conta desconectada.');
+  this.stopTeacher();if(this.client){const {error}=await this.client.auth.signOut({scope:'local'});if(error){app.toast('Não foi possível sair. Tente novamente.');return;}}window.codeMemory?.forget(true);this.user=null;this.profile=null;app.records={};app.student=null;app.run=null;app.home();window.navigationApp.ready=true;this.status('Conta desconectada.');
  }
 };
 cloud.renderTeacher=app.teacher;
