@@ -64,6 +64,20 @@ const cloud={
  },
  async createClass(form){const button=form.querySelector('button');button.disabled=true;try{await this.access({action:'create-class',class_number:form.elements.number.value});form.reset();document.getElementById('class-management-message').textContent='Turma criada. Os alunos já podem se cadastrar.';await this.teacherClasses()}catch(e){document.getElementById('class-management-message').textContent=e.message}finally{button.disabled=false}},
  async joinClass(form){const button=form.querySelector('button');button.disabled=true;try{await this.access({action:'join-class',invite:form.elements.invite.value});form.reset();document.getElementById('class-management-message').textContent='Você agora acompanha essa turma.';await this.teacherClasses();await this.teacher()}catch(e){document.getElementById('class-management-message').textContent=e.message}finally{button.disabled=false}},
+ canonicalStudentRecord(record){
+  record.participant_code=this.profile.participant_code;record.full_name=this.profile.full_name||'';record.class_number=this.profile.class_number||'';return record;
+ },
+ async refreshStudentIdentity(){
+  const uid=this.user?.id,oldCode=this.profile?.participant_code;if(!uid||this.profile?.is_teacher)return false;
+  const {data,error}=await this.client.from('profiles').select('*').eq('id',uid).single();
+  if(error||!data||data.is_teacher||this.user?.id!==uid)throw Error('Não foi possível atualizar seu código. Recarregue a página.');
+  const current=app.record();this.profile=data;
+  if(current){this.canonicalStudentRecord(current);app.records={[data.participant_code]:current};app.student=data.participant_code;}
+  if(this.pending?.user_id===uid){this.pending.participant_code=data.participant_code;this.pending.classroom_id=data.classroom_id||null;this.canonicalStudentRecord(this.pending.record);try{sessionStorage.setItem('midiacheck-pending:'+uid,JSON.stringify(this.pending))}catch{}}
+  const greeting=document.getElementById('greeting'),code=document.getElementById('student-current-code');if(greeting)greeting.textContent='Olá, '+(data.full_name||data.participant_code)+'.';if(code)code.textContent=data.participant_code;
+  window.codeMemory?.rememberStudent(data);
+  return oldCode!==data.participant_code;
+ },
  enqueue(r){
   if(!this.user||this.profile?.is_teacher||r.participant_code!==this.profile?.participant_code){this.status('Sem conta de aluno conectada.');return false;}
   r.full_name=this.profile.full_name||r.full_name||'';r.class_number=this.profile.class_number||r.class_number||'';
@@ -80,7 +94,7 @@ const cloud={
     const {error}=await this.client.from('progress').upsert(next,{onConflict:'user_id'});
     if(error)throw error;
     if(this.pending===next){this.pending=null;try{sessionStorage.removeItem('midiacheck-pending:'+next.user_id)}catch{}}
-   }catch(e){this.status('Falha ao salvar. Nova tentativa automática em instantes.');this.saving=false;if(!this.saveFailureShown){app.toast('Não foi possível salvar agora. Tentaremos novamente automaticamente.');this.saveFailureShown=true;}clearTimeout(this.saveRetryTimer);this.saveRetryTimer=setTimeout(()=>this.retry(),5000);return;}
+   }catch(e){if(e.code==='42501'){try{if(await this.refreshStudentIdentity())continue;}catch{}}this.status('Falha ao salvar. Nova tentativa automática em instantes.');this.saving=false;if(!this.saveFailureShown){app.toast('Não foi possível salvar agora. Tentaremos novamente automaticamente.');this.saveFailureShown=true;}clearTimeout(this.saveRetryTimer);this.saveRetryTimer=setTimeout(()=>this.retry(),5000);return;}
   }
   this.saving=false;this.saveFailureShown=false;clearTimeout(this.saveRetryTimer);this.status('Salvo no banco online ✓');
  },
@@ -101,7 +115,8 @@ const cloud={
   if(data&&!app.validRecord(data.record))throw Error('Registro incompatível com esta versão.');
   let record=data?data.record:app.newRecord(code),journal=null;
   try{journal=JSON.parse(sessionStorage.getItem('midiacheck-pending:'+uid))}catch{}
-  if(journal?.user_id===uid&&journal.participant_code===code&&app.validRecord(journal.record)&&(!data||Date.parse(journal.record.updated_at)>Date.parse(record.updated_at)))record=journal.record;
+  if(journal?.user_id===uid&&app.validRecord(journal.record)&&(!data||Date.parse(journal.record.updated_at)>Date.parse(record.updated_at)))record=journal.record;
+  this.canonicalStudentRecord(record);
   app.student=code;app.records={[code]:record};app.run=null;
   if(!data&&fromLogin)record.avatar=app.avatarChoice;
   app.avatarChoice=record.avatar;

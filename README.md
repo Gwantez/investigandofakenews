@@ -8,7 +8,7 @@ O professor se cadastra com nome, e-mail e senha e cria suas turmas. Outros prof
 
 O aluno escolhe somente a turma. O servidor sorteia um apelido formado por palavras e acrescenta o número da turma ao código, por exemplo AURORACORAL1 (Aurora Coral, turma 1). O cadastro não pede nome, e-mail ou senha do aluno e ignora nomes ou códigos enviados pelo cliente. O código deve ser guardado, pois permite voltar à mesma conta; a entrada aceita letras maiúsculas ou minúsculas.
 
-O apelido é gravado na coluna `full_name` por compatibilidade com os painéis existentes. A unicidade é garantida pela restrição do banco; colisões geram nova tentativa, inclusive em cadastros simultâneos. As contas e respostas anteriores permanecem com seus identificadores originais. Apelidos constituem pseudonimização; não representam, por si só, anonimização irreversível ou aprovação ética da pesquisa.
+O apelido é gravado na coluna `full_name` por compatibilidade com os painéis existentes. A unicidade é garantida pela restrição do banco; colisões geram nova tentativa, inclusive em cadastros simultâneos. A troca administrativa de apelidos e códigos preserva a conta e suas respostas. Os identificadores anteriores podem ser substituídos, com controle de correspondência mantido separadamente e de forma reservada. Apelidos constituem pseudonimização; não representam, por si só, anonimização irreversível ou aprovação ética da pesquisa.
 
 Ao publicar o backend, inclua `server/index.ts`, `server/student-nicknames.mjs` e a configuração Deno da função `midiacheck-access`. Não coloque chaves administrativas no navegador.
 
